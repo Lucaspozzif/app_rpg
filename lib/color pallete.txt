@@ -1,0 +1,5 @@
+E7ECEF - white
+274C77 - dark blue
+6096BA - blue
+A3CEF1 - light blue
+8B8C89 - grey
