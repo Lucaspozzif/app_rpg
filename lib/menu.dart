@@ -522,29 +522,6 @@ class _GameMenuState extends State<GameMenu> {
                     },
                   ),
                 ),
-                Container(
-                  margin: EdgeInsets.symmetric(vertical: 10),
-                  padding: EdgeInsets.symmetric(vertical: 5, horizontal: 20),
-                  width: 320,
-                  decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(30)),
-                  child: TextFormField(
-                    decoration: InputDecoration(
-                        border: InputBorder.none,
-                        icon: Icon(
-                          Icons.password,
-                          color: Color.fromRGBO(25, 65, 185, 1),
-                        ),
-                        labelText: 'Senha'),
-                    validator: (value) {
-                      if (value!.isEmpty) {
-                        return 'Digite a senha da sala';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
                 SizedBox(
                   height: 10,
                 ),
