@@ -17,60 +17,56 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
         body: AnimatedContainer(
-          duration: Duration(milliseconds: 300),
-          height: MediaQuery.of(context).size.height,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
+      duration: Duration(milliseconds: 300),
+      height: MediaQuery.of(context).size.height,
+      decoration: BoxDecoration(
+          gradient: LinearGradient(
               begin: Alignment.topRight,
               end: Alignment.bottomLeft,
-              colors: [
-                Color(0xFF274C77),
-                Color(0xFFA3CEF1)
-              ]
-            )
-          ),
-          child: ListView(
-            shrinkWrap: true,
-            scrollDirection: Axis.vertical,
-            children: [
-              Column(
-                children: <Widget>[
-                  SizedBox(
-                    height: 100,
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(
-                        'assets/logoWhite.png',
-                        width: 230,
-                      )
-                    ],
-                  ),
-                  SizedBox(
-                    height: 100,
-                  ),
-                  Consumer<ApplicationState>(
-                    builder: (context, appState, _) => Authentication(
-                      email: appState.email,
-                      loginState: appState.loginState,
-                      startLoginFlow: appState.startLoginFlow,
-                      verifyEmail: appState.verifyEmail,
-                      signInWithEmailAndPassword:
-                          appState.signInWithEmailAndPassword,
-                      cancelRegistration: appState.cancelRegistration,
-                      registerAccount: appState.registerAccount,
-                      signOut: appState.signOut,
-                    ),
-                  ),
-                  SizedBox(height: 70),
+              colors: [Color(0xFF274C77), Color(0xFFA3CEF1)])),
+      child: ListView(
+        shrinkWrap: true,
+        scrollDirection: Axis.vertical,
+        children: [
+          Column(
+            children: <Widget>[
+              SizedBox(
+                height: 100,
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/logoWhite.png',
+                    width: 230,
+                  )
                 ],
               ),
+              SizedBox(
+                height: 100,
+              ),
+              Consumer<ApplicationState>(
+                builder: (context, appState, _) => Authentication(
+                  email: appState.email,
+                  loginState: appState.loginState,
+                  startLoginFlow: appState.startLoginFlow,
+                  verifyEmail: appState.verifyEmail,
+                  signInWithEmailAndPassword:
+                      appState.signInWithEmailAndPassword,
+                  cancelRegistration: appState.cancelRegistration,
+                  registerAccount: appState.registerAccount,
+                  signOut: appState.signOut,
+                ),
+              ),
+              SizedBox(height: 70),
             ],
           ),
-        ));
+        ],
+      ),
+    ));
   }
 }
+
 enum ApplicationLoginState {
   loggedOut,
   emailAddress,
@@ -112,6 +108,7 @@ class Authentication extends StatelessWidget {
 
   final void Function(
     String email,
+    String displayName,
     String password,
     void Function(Exception e) error,
   ) registerAccount;
@@ -145,11 +142,12 @@ class Authentication extends StatelessWidget {
                 email, (e) => _showErrorDialog(context, 'Email Inválido', e)));
       case ApplicationLoginState.password:
         return PasswordForm(
-            email: email!,
-            login: (email, password) {
-              signInWithEmailAndPassword(email, password,
-                  (e) => _showErrorDialog(context, 'Falha ao entrar', e));
-            });
+          email: email!,
+          login: (email, password) {
+            signInWithEmailAndPassword(email, password,
+                (e) => _showErrorDialog(context, 'Falha ao entrar', e));
+          },
+        );
       case ApplicationLoginState.register:
         return RegisterForm(
           email: email!,
@@ -158,13 +156,11 @@ class Authentication extends StatelessWidget {
           },
           registerAccount: (
             email,
+            displayName,
             password,
           ) {
-            registerAccount(
-                email,
-                password,
-                (e) =>
-                    _showErrorDialog(context, 'Failed to create account', e));
+            registerAccount(email, displayName, password,
+                (e) => _showErrorDialog(context, 'Falha ao criar conta', e));
           },
         );
       case ApplicationLoginState.loggedIn:
@@ -201,130 +197,6 @@ class Authentication extends StatelessWidget {
         );
     }
   }
-}
-
-class ApplicationState extends ChangeNotifier {
-  ApplicationState() {
-    init();
-  }
-
-  Future<void> init() async {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-
-    FirebaseAuth.instance.userChanges().listen(
-      (user) {
-        if (user != null) {
-          _loginState = ApplicationLoginState.loggedIn;
-        } else {
-          _loginState = ApplicationLoginState.loggedOut;
-        }
-        notifyListeners();
-      },
-    );
-  }
-
-  ApplicationLoginState _loginState = ApplicationLoginState.loggedOut;
-  ApplicationLoginState get loginState => _loginState;
-
-  String? _email;
-  String? get email => _email;
-
-  void startLoginFlow() {
-    _loginState = ApplicationLoginState.emailAddress;
-    notifyListeners();
-  }
-
-  Future<void> verifyEmail(
-    String email,
-    void Function(FirebaseAuthException e) errorCallback,
-  ) async {
-    try {
-      var methods =
-          await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
-      if (methods.contains('password')) {
-        _loginState = ApplicationLoginState.password;
-      } else {
-        _loginState = ApplicationLoginState.register;
-      }
-      _email = email;
-      notifyListeners();
-    } on FirebaseAuthException catch (e) {
-      errorCallback(e);
-    }
-  }
-
-  Future<void> signInWithEmailAndPassword(
-    String email,
-    String password,
-    void Function(FirebaseAuthException e) errorCallback,
-  ) async {
-    try {
-      await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: email, password: password);
-    } on FirebaseAuthException catch (e) {
-      errorCallback(e);
-    }
-  }
-
-  void cancelRegistration() {
-    _loginState = ApplicationLoginState.emailAddress;
-    notifyListeners();
-  }
-
-  Future<void> registerAccount(
-    String email,
-    String password,
-    void Function(FirebaseAuthException e) errorCallback,
-  ) async {
-    try {
-      var credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: email, password: password);
-      await credential.user!.updateDisplayName(email);
-    } on FirebaseAuthException catch (e) {
-      errorCallback(e);
-    }
-  }
-
-  void signOut() {
-    FirebaseAuth.instance.signOut();
-  }
-}
-
-void _showErrorDialog(BuildContext context, String title, Exception e) {
-  showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            title,
-            style: const TextStyle(fontSize: 24),
-          ),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: [
-                Text(
-                  '${(e as dynamic).message}',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text(
-                  'OK',
-                  style: TextStyle(
-                    color: Color.fromRGBO(25, 65, 185, 1),
-                  ),
-                ))
-          ],
-        );
-      });
 }
 
 class EmailForm extends StatefulWidget {
@@ -410,7 +282,8 @@ class RegisterForm extends StatefulWidget {
   });
 
   final String email;
-  final void Function(String email, String password) registerAccount;
+  final void Function(String email, String displayName, String password)
+      registerAccount;
   final void Function() cancel;
 
   @override
@@ -420,6 +293,7 @@ class RegisterForm extends StatefulWidget {
 class RegisterFormState extends State<RegisterForm> {
   final _formKey = GlobalKey<FormState>(debugLabel: '_RegisterFormState');
   final _emailController = TextEditingController();
+  final _displayNameController = TextEditingController();
   final _passwordController = TextEditingController();
 
   @override
@@ -455,6 +329,32 @@ class RegisterFormState extends State<RegisterForm> {
                   validator: (value) {
                     if (value!.isEmpty) {
                       return 'Digite seu email para continuar';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              Container(
+                margin: EdgeInsets.symmetric(vertical: 10),
+                padding: EdgeInsets.symmetric(vertical: 5, horizontal: 20),
+                width: 250,
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: TextFormField(
+                  controller: _displayNameController,
+                  decoration: InputDecoration(
+                      border: InputBorder.none,
+                      icon: Icon(
+                        Icons.account_circle,
+                        color: Color.fromRGBO(25, 65, 185, 1),
+                      ),
+                      labelText: 'Nome'),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value!.isEmpty) {
+                      return 'Digite seu nome';
                     }
                     return null;
                   },
@@ -512,7 +412,10 @@ class RegisterFormState extends State<RegisterForm> {
               onPressed: () {
                 if (_formKey.currentState!.validate()) {
                   widget.registerAccount(
-                      _emailController.text, _passwordController.text);
+                    _emailController.text,
+                    _displayNameController.text,
+                    _passwordController.text,
+                  );
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -554,6 +457,12 @@ class _PasswordFormState extends State<PasswordForm> {
   final _passwordController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _emailController.text = widget.email;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
@@ -561,7 +470,6 @@ class _PasswordFormState extends State<PasswordForm> {
           key: _formKey,
           child: Column(
             children: [
-              /*
               Container(
                 margin: EdgeInsets.symmetric(vertical: 10),
                 padding: EdgeInsets.symmetric(vertical: 5, horizontal: 20),
@@ -586,7 +494,7 @@ class _PasswordFormState extends State<PasswordForm> {
                   },
                 ),
               ),
-              */
+              
               Container(
                 margin: EdgeInsets.symmetric(vertical: 10),
                 padding: EdgeInsets.symmetric(vertical: 5, horizontal: 20),
@@ -644,4 +552,129 @@ class _PasswordFormState extends State<PasswordForm> {
       ],
     );
   }
+}
+
+class ApplicationState extends ChangeNotifier {
+  ApplicationState() {
+    init();
+  }
+
+  Future<void> init() async {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    FirebaseAuth.instance.userChanges().listen(
+      (user) {
+        if (user != null) {
+          _loginState = ApplicationLoginState.loggedIn;
+        } else {
+          _loginState = ApplicationLoginState.loggedOut;
+        }
+        notifyListeners();
+      },
+    );
+  }
+
+  ApplicationLoginState _loginState = ApplicationLoginState.loggedOut;
+  ApplicationLoginState get loginState => _loginState;
+
+  String? _email;
+  String? get email => _email;
+
+  void startLoginFlow() {
+    _loginState = ApplicationLoginState.emailAddress;
+    notifyListeners();
+  }
+
+  Future<void> verifyEmail(
+    String email,
+    void Function(FirebaseAuthException e) errorCallback,
+  ) async {
+    try {
+      var methods =
+          await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
+      if (methods.contains('password')) {
+        _loginState = ApplicationLoginState.password;
+      } else {
+        _loginState = ApplicationLoginState.register;
+      }
+      _email = email;
+      notifyListeners();
+    } on FirebaseAuthException catch (e) {
+      errorCallback(e);
+    }
+  }
+
+  Future<void> signInWithEmailAndPassword(
+    String email,
+    String password,
+    void Function(FirebaseAuthException e) errorCallback,
+  ) async {
+    try {
+      await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+    } on FirebaseAuthException catch (e) {
+      errorCallback(e);
+    }
+  }
+
+  void cancelRegistration() {
+    _loginState = ApplicationLoginState.emailAddress;
+    notifyListeners();
+  }
+
+  Future<void> registerAccount(
+    String email,
+    String displayName,
+    String password,
+    void Function(FirebaseAuthException e) errorCallback,
+  ) async {
+    try {
+      var credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+      await credential.user!.updateDisplayName(displayName);
+    } on FirebaseAuthException catch (e) {
+      errorCallback(e);
+    }
+  }
+
+  void signOut() {
+    FirebaseAuth.instance.signOut();
+  }
+}
+
+void _showErrorDialog(BuildContext context, String title, Exception e) {
+  showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            title,
+            style: const TextStyle(fontSize: 24),
+          ),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: [
+                Text(
+                  '${(e as dynamic).message}',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Color.fromRGBO(25, 65, 185, 1),
+                  ),
+                ))
+          ],
+        );
+      });
 }
